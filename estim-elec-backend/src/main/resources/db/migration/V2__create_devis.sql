@@ -1,0 +1,1 @@
+-- No-op migration: la table devis est déjà créée dans V1__init_database.sql.

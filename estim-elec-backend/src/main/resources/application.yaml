@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: estim-elec-backend
+
+  profiles:
+    active: dev
