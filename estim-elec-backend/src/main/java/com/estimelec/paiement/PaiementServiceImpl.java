@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -29,12 +28,15 @@ public class PaiementServiceImpl implements PaiementService {
     @Override
     @Transactional(readOnly = true)
     public List<PaiementResponse> findAll(Long factureId) {
-        List<Paiement> paiements = factureId == null
-                ? paiementRepository.findAll()
-                : paiementRepository.findByFactureIdOrderByDatePaiementDescIdDesc(factureId);
+        List<Paiement> paiements;
+
+        if (factureId != null) {
+            paiements = paiementRepository.findByFactureId(factureId);
+        } else {
+            paiements = paiementRepository.findAll();
+        }
 
         return paiements.stream()
-                .sorted(Comparator.comparing(Paiement::getId).reversed())
                 .map(this::toResponseWithTotals)
                 .toList();
     }
@@ -52,6 +54,7 @@ public class PaiementServiceImpl implements PaiementService {
     public PaiementResponse create(PaiementRequest request) {
         validateRequest(request);
 
+        // 1. récupérer la facture
         Facture facture = factureRepository.findById(request.getFactureId())
                 .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable avec l'id : " + request.getFactureId()));
 
@@ -59,33 +62,36 @@ public class PaiementServiceImpl implements PaiementService {
             throw new BadRequestException("Impossible d'ajouter un paiement sur une facture annulée.");
         }
 
-        BigDecimal totalPayeAvant = sumPaiements(facture.getId());
-        BigDecimal totalFacture = safe(facture.getMontantTotalTtc());
-        BigDecimal nouveauTotalPaye = scale(totalPayeAvant.add(request.getMontant()));
+        // 2. total déjà payé
+        BigDecimal totalPaye = paiementRepository.sumMontantByFactureId(facture.getId());
+        if (totalPaye == null) {
+            totalPaye = BigDecimal.ZERO;
+        }
 
-        if (nouveauTotalPaye.compareTo(totalFacture) > 0) {
+        // 3. nouveau total
+        BigDecimal nouveauTotal = totalPaye.add(request.getMontant());
+
+        // 4. validation (anti dépassement)
+        if (nouveauTotal.compareTo(facture.getMontantTotalTtc()) > 0) {
             throw new BadRequestException("Le paiement dépasse le montant restant à payer.");
         }
 
+        // 5. création paiement
         Paiement paiement = paiementMapper.toEntity(request, facture);
         Paiement saved = paiementRepository.save(paiement);
 
-        updateFactureStatus(facture);
+        // 6. mise à jour statut facture
+        updateStatutFacture(facture, nouveauTotal);
 
         return toResponseWithTotals(saved);
     }
 
     @Override
     public void delete(Long id) {
-        Paiement paiement = paiementRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Paiement introuvable avec l'id : " + id));
-
-        Facture facture = paiement.getFacture();
-        paiementRepository.delete(paiement);
-
-        if (facture != null) {
-            updateFactureStatus(facture);
+        if (!paiementRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Paiement introuvable avec id=" + id);
         }
+        paiementRepository.deleteById(id);
     }
 
     private void validateRequest(PaiementRequest request) {
@@ -106,10 +112,9 @@ public class PaiementServiceImpl implements PaiementService {
         }
     }
 
-    private void updateFactureStatus(Facture facture) {
-        BigDecimal totalFacture = safe(facture.getMontantTotalTtc());
-        BigDecimal totalPaye = sumPaiements(facture.getId());
-
+    // logique métier ici
+    private void updateStatutFacture(Facture facture, BigDecimal totalPaye) {
+        BigDecimal totalFacture = facture.getMontantTotalTtc();
         if (totalPaye.compareTo(BigDecimal.ZERO) == 0) {
             facture.setStatut(StatutFacture.EMISE);
         } else if (totalPaye.compareTo(totalFacture) < 0) {
@@ -123,17 +128,11 @@ public class PaiementServiceImpl implements PaiementService {
 
     private PaiementResponse toResponseWithTotals(Paiement paiement) {
         Long factureId = paiement.getFacture() != null ? paiement.getFacture().getId() : null;
-        BigDecimal totalPaye = factureId == null ? BigDecimal.ZERO : sumPaiements(factureId);
+        BigDecimal totalPaye = factureId == null ? BigDecimal.ZERO : safe(paiementRepository.sumMontantByFactureId(factureId));
         BigDecimal totalFacture = paiement.getFacture() != null ? safe(paiement.getFacture().getMontantTotalTtc()) : BigDecimal.ZERO;
         BigDecimal reste = scale(totalFacture.subtract(totalPaye).max(BigDecimal.ZERO));
 
         return paiementMapper.toResponse(paiement, totalPaye, reste);
-    }
-
-    private BigDecimal sumPaiements(Long factureId) {
-        return scale(paiementRepository.findByFactureId(factureId).stream()
-                .map(Paiement::getMontant)
-                .reduce(BigDecimal.ZERO, BigDecimal::add));
     }
 
     private BigDecimal safe(BigDecimal value) {
