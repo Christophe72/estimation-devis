@@ -54,7 +54,6 @@ public class PaiementServiceImpl implements PaiementService {
     public PaiementResponse create(PaiementRequest request) {
         validateRequest(request);
 
-        // 1. récupérer la facture
         Facture facture = factureRepository.findById(request.getFactureId())
                 .orElseThrow(() -> new ResourceNotFoundException("Facture introuvable avec l'id : " + request.getFactureId()));
 
@@ -62,25 +61,24 @@ public class PaiementServiceImpl implements PaiementService {
             throw new BadRequestException("Impossible d'ajouter un paiement sur une facture annulée.");
         }
 
-        // 2. total déjà payé
+        if (facture.getStatut() == StatutFacture.PAYEE) {
+            throw new BadRequestException("La facture est déjà payée.");
+        }
+
         BigDecimal totalPaye = paiementRepository.sumMontantByFactureId(facture.getId());
         if (totalPaye == null) {
             totalPaye = BigDecimal.ZERO;
         }
 
-        // 3. nouveau total
         BigDecimal nouveauTotal = totalPaye.add(request.getMontant());
 
-        // 4. validation (anti dépassement)
         if (nouveauTotal.compareTo(facture.getMontantTotalTtc()) > 0) {
             throw new BadRequestException("Le paiement dépasse le montant restant à payer.");
         }
 
-        // 5. création paiement
         Paiement paiement = paiementMapper.toEntity(request, facture);
         Paiement saved = paiementRepository.save(paiement);
 
-        // 6. mise à jour statut facture
         updateStatutFacture(facture, nouveauTotal);
 
         return toResponseWithTotals(saved);
@@ -88,10 +86,21 @@ public class PaiementServiceImpl implements PaiementService {
 
     @Override
     public void delete(Long id) {
-        if (!paiementRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Paiement introuvable avec id=" + id);
+        Paiement paiement = paiementRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Paiement introuvable avec l'id : " + id));
+
+        Facture facture = paiement.getFacture();
+
+        paiementRepository.delete(paiement);
+
+        if (facture != null) {
+            BigDecimal totalPaye = paiementRepository.sumMontantByFactureId(facture.getId());
+            if (totalPaye == null) {
+                totalPaye = BigDecimal.ZERO;
+            }
+
+            updateStatutFacture(facture, totalPaye);
         }
-        paiementRepository.deleteById(id);
     }
 
     private void validateRequest(PaiementRequest request) {
@@ -112,9 +121,9 @@ public class PaiementServiceImpl implements PaiementService {
         }
     }
 
-    // logique métier ici
     private void updateStatutFacture(Facture facture, BigDecimal totalPaye) {
         BigDecimal totalFacture = facture.getMontantTotalTtc();
+
         if (totalPaye.compareTo(BigDecimal.ZERO) == 0) {
             facture.setStatut(StatutFacture.EMISE);
         } else if (totalPaye.compareTo(totalFacture) < 0) {
