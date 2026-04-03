@@ -1,9 +1,8 @@
 package com.estimelec.estimation;
 
+import com.estimelec.ouvrage.Ouvrage;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,18 +38,12 @@ public class EstimationLine {
     @JoinColumn(name = "estimation_id", nullable = false)
     private Estimation estimation;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type_ligne", nullable = false, length = 50)
-    private TypeLigneEstimation typeLigne;
-
-    @Column(name = "designation", nullable = false, length = 255)
-    private String designation;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ouvrage_id")
+    private Ouvrage ouvrage;
 
     @Column(name = "quantite", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantite;
-
-    @Column(name = "unite", nullable = false, length = 30)
-    private String unite;
 
     @Column(name = "prix_unitaire_ht", nullable = false, precision = 12, scale = 2)
     private BigDecimal prixUnitaireHt;
@@ -60,12 +53,6 @@ public class EstimationLine {
 
     @Column(name = "total_ht", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalHt;
-
-    @Column(name = "total_tva", nullable = false, precision = 12, scale = 2)
-    private BigDecimal totalTva;
-
-    @Column(name = "total_ttc", nullable = false, precision = 12, scale = 2)
-    private BigDecimal totalTtc;
 
     @Column(name = "ordre", nullable = false)
     private Integer ordre;
@@ -98,12 +85,6 @@ public class EstimationLine {
         }
         if (this.totalHt == null) {
             this.totalHt = BigDecimal.ZERO;
-        }
-        if (this.totalTva == null) {
-            this.totalTva = BigDecimal.ZERO;
-        }
-        if (this.totalTtc == null) {
-            this.totalTtc = BigDecimal.ZERO;
         }
         if (this.ordre == null) {
             this.ordre = 0;

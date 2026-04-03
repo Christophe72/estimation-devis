@@ -6,15 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.util.List;
@@ -27,8 +19,10 @@ public class OuvrageController {
     private final OuvrageService ouvrageService;
 
     @GetMapping
-    public ResponseEntity<List<OuvrageResponse>> findAll() {
-        return ResponseEntity.ok(ouvrageService.findAll());
+    public ResponseEntity<List<OuvrageResponse>> findAll(
+            @RequestParam(required = false) Boolean actifOnly
+    ) {
+        return ResponseEntity.ok(ouvrageService.findAll(actifOnly));
     }
 
     @GetMapping("/{id}")
@@ -38,15 +32,15 @@ public class OuvrageController {
 
     @PostMapping
     public ResponseEntity<OuvrageResponse> create(@Valid @RequestBody OuvrageRequest request) {
-        OuvrageResponse created = ouvrageService.create(request);
-
+        OuvrageResponse response = ouvrageService.create(request);
         return ResponseEntity
-                .created(URI.create("/api/ouvrages/" + created.getId()))
-                .body(created);
+                .created(URI.create("/api/ouvrages/" + response.getId()))
+                .body(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<OuvrageResponse> update(@PathVariable Long id, @Valid @RequestBody OuvrageRequest request) {
+    public ResponseEntity<OuvrageResponse> update(@PathVariable Long id,
+                                                  @Valid @RequestBody OuvrageRequest request) {
         return ResponseEntity.ok(ouvrageService.update(id, request));
     }
 

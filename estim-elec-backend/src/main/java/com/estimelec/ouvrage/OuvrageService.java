@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface OuvrageService {
 
-    List<OuvrageResponse> findAll();
+    List<OuvrageResponse> findAll(Boolean actifOnly);
 
     OuvrageResponse findById(Long id);
 

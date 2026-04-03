@@ -8,7 +8,6 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Getter
 @Setter
@@ -22,11 +21,9 @@ public class OuvrageResponse {
     private String designation;
     private String categorie;
     private String unite;
-    private BigDecimal tempsPoseHeures;
+    private BigDecimal tempsPoseHeure;
     private String description;
     private Boolean actif;
-    private BigDecimal coutMaterielHt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private List<OuvrageComponentResponse> composants;
 }

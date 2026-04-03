@@ -73,7 +73,7 @@ public class DevisMapper {
         BigDecimal coutMaterielUnitaire = scale(defaultIfNull(request.getCoutMaterielUnitaireHt()));
         BigDecimal coutMainOeuvreUnitaire = scale(defaultIfNull(request.getCoutMainOeuvreUnitaireHt()));
 
-        BigDecimal totalLigne = scale(quantite.multiply(coutMaterielUnitaire.add(coutMainOeuvreUnitaire)));
+        BigDecimal totalLigne = scale(quantite.multiply(coutMaterielUnitaire));
 
         return DevisLine.builder()
                 .devis(devis)

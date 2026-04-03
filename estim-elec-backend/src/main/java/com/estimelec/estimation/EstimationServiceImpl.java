@@ -1,19 +1,29 @@
 package com.estimelec.estimation;
 
+import com.estimelec.common.exception.BadRequestException;
 import com.estimelec.common.exception.ResourceNotFoundException;
 import com.estimelec.customer.Customer;
 import com.estimelec.customer.CustomerRepository;
+import com.estimelec.devis.Devis;
+import com.estimelec.devis.DevisLine;
+import com.estimelec.devis.DevisRepository;
+import com.estimelec.devis.StatutDevis;
+import com.estimelec.devis.dto.DevisResponse;
+import com.estimelec.devis.mapper.DevisMapper;
 import com.estimelec.estimation.dto.EstimationLineRequest;
 import com.estimelec.estimation.dto.EstimationRequest;
 import com.estimelec.estimation.dto.EstimationResponse;
 import com.estimelec.estimation.mapper.EstimationMapper;
+import com.estimelec.ouvrage.Ouvrage;
+import com.estimelec.ouvrage.OuvrageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Comparator;
+import java.time.Year;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -21,23 +31,48 @@ import java.util.List;
 @Transactional
 public class EstimationServiceImpl implements EstimationService {
 
-    private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
-
     private final EstimationRepository estimationRepository;
     private final CustomerRepository customerRepository;
+    private final OuvrageRepository ouvrageRepository;
     private final EstimationMapper estimationMapper;
+    private final DevisRepository devisRepository;
+    private final DevisMapper devisMapper;
+
+    @Override
+    public EstimationResponse create(EstimationRequest request) {
+        Customer customer = customerRepository.findById(request.getCustomerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Customer introuvable"));
+
+        Estimation estimation = Estimation.builder()
+                .designation(request.getDesignation())
+                .description(request.getDescription())
+                .customer(customer)
+                .lines(new ArrayList<>())
+                .build();
+
+        if (request.getLines() != null) {
+            int ordre = 1;
+
+            for (EstimationLineRequest lineRequest : request.getLines()) {
+                Ouvrage ouvrage = ouvrageRepository.findById(lineRequest.getOuvrageId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Ouvrage introuvable"));
+
+                EstimationLine line = buildLine(estimation, lineRequest, ouvrage, ordre++);
+                estimation.getLines().add(line);
+            }
+        }
+
+        recalculerTotaux(estimation);
+
+        Estimation saved = estimationRepository.save(estimation);
+        return estimationMapper.toResponse(saved);
+    }
 
     @Override
     @Transactional(readOnly = true)
-    public List<EstimationResponse> findAll(Long customerId) {
-        List<Estimation> estimations = customerId != null
-                ? estimationRepository.findAllByCustomerIdOrderByIdDesc(customerId)
-                : estimationRepository.findAll()
+    public List<EstimationResponse> findAll() {
+        return estimationRepository.findAll()
                 .stream()
-                .sorted(Comparator.comparing(Estimation::getId).reversed())
-                .toList();
-
-        return estimations.stream()
                 .map(estimationMapper::toResponse)
                 .toList();
     }
@@ -46,135 +81,216 @@ public class EstimationServiceImpl implements EstimationService {
     @Transactional(readOnly = true)
     public EstimationResponse findById(Long id) {
         Estimation estimation = estimationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Estimation introuvable avec l'id : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Estimation introuvable"));
 
         return estimationMapper.toResponse(estimation);
     }
 
     @Override
-    public EstimationResponse create(EstimationRequest request) {
-        Customer customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer introuvable avec l'id : " + request.getCustomerId()));
-
-        Estimation estimation = Estimation.builder()
-                .designation(trimToNull(request.getDesignation()))
-                .customer(customer)
-                .description(trimToNull(request.getDescription()))
-                .statut(StatutEstimation.BROUILLON)
-                .totalHt(zero())
-                .totalTva(zero())
-                .totalTtc(zero())
-                .build();
-
-        applyLines(estimation, request.getLines());
-        recalculateTotals(estimation);
-
-        Estimation saved = estimationRepository.save(estimation);
-        return estimationMapper.toResponse(saved);
-    }
-
-    @Override
     public EstimationResponse update(Long id, EstimationRequest request) {
         Estimation estimation = estimationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Estimation introuvable avec l'id : " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Estimation introuvable"));
 
         Customer customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer introuvable avec l'id : " + request.getCustomerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer introuvable"));
 
-        estimation.setDesignation(trimToNull(request.getDesignation()));
+        estimation.setDesignation(request.getDesignation());
+        estimation.setDescription(request.getDescription());
         estimation.setCustomer(customer);
-        estimation.setDescription(trimToNull(request.getDescription()));
 
-        estimation.clearLines();
-        applyLines(estimation, request.getLines());
-        recalculateTotals(estimation);
+        estimation.getLines().clear();
 
-        Estimation saved = estimationRepository.save(estimation);
-        return estimationMapper.toResponse(saved);
+        if (request.getLines() != null) {
+            int ordre = 1;
+
+            for (EstimationLineRequest lineRequest : request.getLines()) {
+                Ouvrage ouvrage = ouvrageRepository.findById(lineRequest.getOuvrageId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Ouvrage introuvable"));
+
+                EstimationLine line = buildLine(estimation, lineRequest, ouvrage, ordre++);
+                estimation.getLines().add(line);
+            }
+        }
+
+        recalculerTotaux(estimation);
+
+        return estimationMapper.toResponse(estimation);
     }
 
     @Override
     public void delete(Long id) {
-        Estimation estimation = estimationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Estimation introuvable avec l'id : " + id));
-
-        estimationRepository.delete(estimation);
+        if (!estimationRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Estimation introuvable");
+        }
+        estimationRepository.deleteById(id);
     }
 
-    private void applyLines(Estimation estimation, List<EstimationLineRequest> lineRequests) {
-        if (lineRequests == null || lineRequests.isEmpty()) {
-            return;
+    @Override
+    public DevisResponse convertirEnDevis(Long estimationId) {
+        Estimation estimation = estimationRepository.findById(estimationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Estimation introuvable"));
+
+        if (estimation.getLines() == null || estimation.getLines().isEmpty()) {
+            throw new BadRequestException("Impossible de convertir une estimation sans lignes.");
         }
 
-        int index = 0;
+        Devis devis = Devis.builder()
+                .numero(genererNumeroDevis())
+                .customer(estimation.getCustomer())
+                .chantierNom(estimation.getDesignation())
+                .adresse(null)
+                .ville(null)
+                .codePostal(null)
+                .typeChantier("ESTIMATION")
+                .statut(StatutDevis.BROUILLON.name())
+                .tauxHoraire(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .coefficientChantier(new BigDecimal("1.00"))
+                .tauxFraisGeneraux(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .tauxMarge(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .tauxTva(new BigDecimal("21.00"))
+                .montantMaterielHt(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .montantMainOeuvreHt(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .montantFraisGenerauxHt(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .montantMargeHt(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .montantTotalHt(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .montantTva(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .montantTotalTtc(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .lines(new ArrayList<>())
+                .build();
 
-        for (EstimationLineRequest lineRequest : lineRequests) {
-            BigDecimal quantite = scale(lineRequest.getQuantite());
-            BigDecimal prixUnitaireHt = scale(lineRequest.getPrixUnitaireHt());
-            BigDecimal tauxTva = scale(lineRequest.getTauxTva());
+        int ordre = 1;
+        BigDecimal totalMaterielHt = BigDecimal.ZERO;
+        BigDecimal totalMainOeuvreHt = BigDecimal.ZERO;
 
-            BigDecimal totalHt = scale(quantite.multiply(prixUnitaireHt));
-            BigDecimal totalTva = scale(
-                    totalHt.multiply(tauxTva).divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP)
-            );
-            BigDecimal totalTtc = scale(totalHt.add(totalTva));
+        for (EstimationLine estimationLine : estimation.getLines()) {
+            BigDecimal quantite = estimationLine.getQuantite() != null
+                    ? estimationLine.getQuantite()
+                    : BigDecimal.ZERO;
 
-            EstimationLine line = EstimationLine.builder()
-                    .estimation(estimation)
-                    .typeLigne(lineRequest.getTypeLigne())
-                    .designation(trimToNull(lineRequest.getDesignation()))
+            BigDecimal prixUnitaireHt = estimationLine.getPrixUnitaireHt() != null
+                    ? estimationLine.getPrixUnitaireHt()
+                    : BigDecimal.ZERO;
+
+            BigDecimal totalLigneHt = estimationLine.getTotalHt() != null
+                    ? estimationLine.getTotalHt()
+                    : prixUnitaireHt.multiply(quantite);
+
+            totalLigneHt = totalLigneHt.setScale(2, RoundingMode.HALF_UP);
+
+            DevisLine devisLine = DevisLine.builder()
+                    .devis(devis)
+                    .typeLigne("MATERIEL")
+                    .ouvrage(estimationLine.getOuvrage())
+                    .designation(
+                            estimationLine.getOuvrage() != null
+                                    ? estimationLine.getOuvrage().getDesignation()
+                                    : "Ligne estimation"
+                    )
                     .quantite(quantite)
-                    .unite(trimToNull(lineRequest.getUnite()))
-                    .prixUnitaireHt(prixUnitaireHt)
-                    .tauxTva(tauxTva)
-                    .totalHt(totalHt)
-                    .totalTva(totalTva)
-                    .totalTtc(totalTtc)
-                    .ordre(lineRequest.getOrdre() != null ? lineRequest.getOrdre() : index)
+                    .unite("U")
+                    .tempsUnitaireHeures(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                    .coutMaterielUnitaireHt(prixUnitaireHt)
+                    .coutMainOeuvreUnitaireHt(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                    .totalLigneHt(totalLigneHt)
+                    .ordreAffichage(ordre++)
                     .build();
 
-            estimation.addLine(line);
-            index++;
+            devis.getLines().add(devisLine);
+            totalMaterielHt = totalMaterielHt.add(totalLigneHt);
         }
+
+        totalMaterielHt = totalMaterielHt.setScale(2, RoundingMode.HALF_UP);
+        totalMainOeuvreHt = totalMainOeuvreHt.setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal montantFraisGenerauxHt = totalMaterielHt
+                .multiply(devis.getTauxFraisGeneraux())
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+        BigDecimal baseAvantMarge = totalMaterielHt
+                .add(totalMainOeuvreHt)
+                .add(montantFraisGenerauxHt);
+
+        BigDecimal montantMargeHt = baseAvantMarge
+                .multiply(devis.getTauxMarge())
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+        BigDecimal montantTotalHt = baseAvantMarge
+                .add(montantMargeHt)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal montantTva = montantTotalHt
+                .multiply(devis.getTauxTva())
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+        BigDecimal montantTotalTtc = montantTotalHt
+                .add(montantTva)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        devis.setMontantMaterielHt(totalMaterielHt);
+        devis.setMontantMainOeuvreHt(totalMainOeuvreHt);
+        devis.setMontantFraisGenerauxHt(montantFraisGenerauxHt);
+        devis.setMontantMargeHt(montantMargeHt);
+        devis.setMontantTotalHt(montantTotalHt);
+        devis.setMontantTva(montantTva);
+        devis.setMontantTotalTtc(montantTotalTtc);
+
+        Devis savedDevis = devisRepository.save(devis);
+        return devisMapper.toResponse(savedDevis);
     }
 
-    private void recalculateTotals(Estimation estimation) {
-        BigDecimal totalHt = estimation.getLines().stream()
+    private EstimationLine buildLine(Estimation estimation,
+                                     EstimationLineRequest request,
+                                     Ouvrage ouvrage,
+                                     int ordre) {
+
+        BigDecimal quantite = request.getQuantite();
+        BigDecimal prix = request.getPrixUnitaireHt();
+
+        if (quantite == null || prix == null) {
+            throw new BadRequestException("Quantité et prix obligatoires");
+        }
+
+        BigDecimal total = prix.multiply(quantite).setScale(2, RoundingMode.HALF_UP);
+
+        return EstimationLine.builder()
+                .estimation(estimation)
+                .ouvrage(ouvrage)
+                .quantite(quantite)
+                .prixUnitaireHt(prix)
+                .totalHt(total)
+                .ordre(ordre)
+                .build();
+    }
+
+    private void recalculerTotaux(Estimation estimation) {
+        BigDecimal totalHt = estimation.getLines()
+                .stream()
                 .map(EstimationLine::getTotalHt)
-                .filter(value -> value != null)
-                .reduce(zero(), BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal totalTva = estimation.getLines().stream()
-                .map(EstimationLine::getTotalTva)
-                .filter(value -> value != null)
-                .reduce(zero(), BigDecimal::add);
+        BigDecimal tva = totalHt
+                .multiply(new BigDecimal("0.21"))
+                .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal totalTtc = estimation.getLines().stream()
-                .map(EstimationLine::getTotalTtc)
-                .filter(value -> value != null)
-                .reduce(zero(), BigDecimal::add);
+        BigDecimal ttc = totalHt
+                .add(tva)
+                .setScale(2, RoundingMode.HALF_UP);
 
-        estimation.setTotalHt(scale(totalHt));
-        estimation.setTotalTva(scale(totalTva));
-        estimation.setTotalTtc(scale(totalTtc));
+        estimation.setTotalHt(totalHt);
+        estimation.setTotalTva(tva);
+        estimation.setTotalTtc(ttc);
     }
 
-    private BigDecimal zero() {
-        return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-    }
+    private String genererNumeroDevis() {
+        int annee = Year.now().getValue();
+        int sequence = 1;
 
-    private BigDecimal scale(BigDecimal value) {
-        if (value == null) {
-            return zero();
-        }
-        return value.setScale(2, RoundingMode.HALF_UP);
-    }
+        String numero;
+        do {
+            numero = String.format("DEV-%d-%04d", annee, sequence++);
+        } while (devisRepository.existsByNumero(numero));
 
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return numero;
     }
 }

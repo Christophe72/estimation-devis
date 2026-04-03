@@ -1,19 +1,16 @@
 package com.estimelec.ouvrage;
 
-import com.estimelec.article.Article;
-import com.estimelec.article.ArticleRepository;
-import com.estimelec.common.exception.BadRequestException;
 import com.estimelec.common.exception.ResourceNotFoundException;
-import com.estimelec.ouvrage.dto.OuvrageComponentRequest;
 import com.estimelec.ouvrage.dto.OuvrageRequest;
 import com.estimelec.ouvrage.dto.OuvrageResponse;
+import com.estimelec.ouvrage.mapper.OuvrageMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -21,15 +18,16 @@ import java.util.Set;
 public class OuvrageServiceImpl implements OuvrageService {
 
     private final OuvrageRepository ouvrageRepository;
-    private final OuvrageComponentRepository ouvrageComponentRepository;
-    private final ArticleRepository articleRepository;
     private final OuvrageMapper ouvrageMapper;
 
     @Override
     @Transactional(readOnly = true)
-    public List<OuvrageResponse> findAll() {
-        return ouvrageRepository.findAll()
-                .stream()
+    public List<OuvrageResponse> findAll(Boolean actifOnly) {
+        List<Ouvrage> ouvrages = Boolean.TRUE.equals(actifOnly)
+                ? ouvrageRepository.findAllByActifTrueOrderByDesignationAsc()
+                : ouvrageRepository.findAllByOrderByDesignationAsc();
+
+        return ouvrages.stream()
                 .map(ouvrageMapper::toResponse)
                 .toList();
     }
@@ -37,7 +35,7 @@ public class OuvrageServiceImpl implements OuvrageService {
     @Override
     @Transactional(readOnly = true)
     public OuvrageResponse findById(Long id) {
-        Ouvrage ouvrage = ouvrageRepository.findWithComposantsById(id)
+        Ouvrage ouvrage = ouvrageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ouvrage introuvable avec l'id : " + id));
 
         return ouvrageMapper.toResponse(ouvrage);
@@ -45,36 +43,35 @@ public class OuvrageServiceImpl implements OuvrageService {
 
     @Override
     public OuvrageResponse create(OuvrageRequest request) {
-        validateCodeUniquenessForCreate(request.getCode());
-        validateDuplicateArticles(request.getComposants());
-
-        Ouvrage ouvrage = ouvrageMapper.toEntity(request);
-        attachComponents(ouvrage, request.getComposants());
+        Ouvrage ouvrage = Ouvrage.builder()
+                .code(trimToNull(request.getCode()))
+                .designation(trimToNull(request.getDesignation()))
+                .categorie(trimToNull(request.getCategorie()))
+                .unite(trimToNull(request.getUnite()))
+                .tempsPoseHeure(scale(request.getTempsPoseHeure()))
+                .description(trimToNull(request.getDescription()))
+                .actif(request.getActif() != null ? request.getActif() : Boolean.TRUE)
+                .build();
 
         Ouvrage saved = ouvrageRepository.save(ouvrage);
-        Ouvrage reloaded = ouvrageRepository.findWithComposantsById(saved.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Ouvrage introuvable avec l'id : " + saved.getId()));
-
-        return ouvrageMapper.toResponse(reloaded);
+        return ouvrageMapper.toResponse(saved);
     }
 
     @Override
     public OuvrageResponse update(Long id, OuvrageRequest request) {
-        Ouvrage existing = ouvrageRepository.findWithComposantsById(id)
+        Ouvrage ouvrage = ouvrageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ouvrage introuvable avec l'id : " + id));
 
-        validateCodeUniquenessForUpdate(request.getCode(), id);
-        validateDuplicateArticles(request.getComposants());
+        ouvrage.setCode(trimToNull(request.getCode()));
+        ouvrage.setDesignation(trimToNull(request.getDesignation()));
+        ouvrage.setCategorie(trimToNull(request.getCategorie()));
+        ouvrage.setUnite(trimToNull(request.getUnite()));
+        ouvrage.setTempsPoseHeure(scale(request.getTempsPoseHeure()));
+        ouvrage.setDescription(trimToNull(request.getDescription()));
+        ouvrage.setActif(request.getActif() != null ? request.getActif() : Boolean.TRUE);
 
-        ouvrageMapper.updateEntity(existing, request);
-        existing.clearComponents();
-        attachComponents(existing, request.getComposants());
-
-        Ouvrage updated = ouvrageRepository.save(existing);
-        Ouvrage reloaded = ouvrageRepository.findWithComposantsById(updated.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Ouvrage introuvable avec l'id : " + updated.getId()));
-
-        return ouvrageMapper.toResponse(reloaded);
+        Ouvrage saved = ouvrageRepository.save(ouvrage);
+        return ouvrageMapper.toResponse(saved);
     }
 
     @Override
@@ -85,39 +82,18 @@ public class OuvrageServiceImpl implements OuvrageService {
         ouvrageRepository.delete(ouvrage);
     }
 
-    private void attachComponents(Ouvrage ouvrage, List<OuvrageComponentRequest> composants) {
-        for (OuvrageComponentRequest componentRequest : composants) {
-            Article article = articleRepository.findById(componentRequest.getArticleId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Article introuvable avec l'id : " + componentRequest.getArticleId()
-                    ));
-
-            OuvrageComponent component = ouvrageMapper.toComponentEntity(componentRequest, article);
-            ouvrage.addComponent(component);
+    private BigDecimal scale(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
+        return value.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private void validateCodeUniquenessForCreate(String code) {
-        if (ouvrageRepository.existsByCodeIgnoreCase(code.trim())) {
-            throw new BadRequestException("Un ouvrage existe déjà avec le code : " + code);
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
         }
-    }
-
-    private void validateCodeUniquenessForUpdate(String code, Long id) {
-        if (ouvrageRepository.existsByCodeIgnoreCaseAndIdNot(code.trim(), id)) {
-            throw new BadRequestException("Un autre ouvrage existe déjà avec le code : " + code);
-        }
-    }
-
-    private void validateDuplicateArticles(List<OuvrageComponentRequest> composants) {
-        Set<Long> articleIds = new HashSet<>();
-
-        for (OuvrageComponentRequest component : composants) {
-            if (!articleIds.add(component.getArticleId())) {
-                throw new BadRequestException(
-                        "Le même article ne peut pas être présent plusieurs fois dans un ouvrage : " + component.getArticleId()
-                );
-            }
-        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : null;
     }
 }
