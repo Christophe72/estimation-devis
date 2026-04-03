@@ -4,6 +4,8 @@ import com.estimelec.customer.Customer;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -48,6 +50,10 @@ public class Estimation {
     @Column(name = "description", length = 1000)
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut", nullable = false, length = 50)
+    private StatutEstimation statut;
+
     @Column(name = "total_ht", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalHt;
 
@@ -61,18 +67,26 @@ public class Estimation {
     @Builder.Default
     private List<EstimationLine> lines = new ArrayList<>();
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
     public void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+        applyDefaults();
+    }
 
+    @PreUpdate
+    public void preUpdate() {
+        applyDefaults();
+    }
+
+    private void applyDefaults() {
+        if (this.statut == null) {
+            this.statut = StatutEstimation.BROUILLON;
+        }
         if (this.totalHt == null) {
             this.totalHt = BigDecimal.ZERO;
         }
@@ -82,19 +96,24 @@ public class Estimation {
         if (this.totalTtc == null) {
             this.totalTtc = BigDecimal.ZERO;
         }
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        if (this.lines == null) {
+            this.lines = new ArrayList<>();
+        }
     }
 
     public void addLine(EstimationLine line) {
+        if (line == null) {
+            return;
+        }
         this.lines.add(line);
         line.setEstimation(this);
     }
 
     public void clearLines() {
+        if (this.lines == null) {
+            this.lines = new ArrayList<>();
+            return;
+        }
         for (EstimationLine line : this.lines) {
             line.setEstimation(null);
         }

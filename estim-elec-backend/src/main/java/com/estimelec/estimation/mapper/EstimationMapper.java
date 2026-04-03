@@ -13,9 +13,16 @@ import java.util.List;
 public class EstimationMapper {
 
     public EstimationResponse toResponse(Estimation estimation) {
-        List<EstimationLineResponse> lines = estimation.getLines()
+        List<EstimationLineResponse> lines = estimation.getLines() == null
+                ? List.of()
+                : estimation.getLines()
                 .stream()
-                .sorted(Comparator.comparing(EstimationLine::getOrdre).thenComparing(EstimationLine::getId))
+                .sorted(
+                        Comparator.comparing(
+                                EstimationLine::getOrdre,
+                                Comparator.nullsLast(Integer::compareTo)
+                        ).thenComparing(EstimationLine::getId)
+                )
                 .map(this::toLineResponse)
                 .toList();
 

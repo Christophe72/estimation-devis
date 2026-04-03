@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -48,7 +49,7 @@ public class EstimationLine {
     @Column(name = "quantite", nullable = false, precision = 12, scale = 2)
     private BigDecimal quantite;
 
-    @Column(name = "unite", length = 30)
+    @Column(name = "unite", nullable = false, length = 30)
     private String unite;
 
     @Column(name = "prix_unitaire_ht", nullable = false, precision = 12, scale = 2)
@@ -77,6 +78,21 @@ public class EstimationLine {
 
     @PrePersist
     public void prePersist() {
+        applyDefaults();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        applyDefaults();
+    }
+
+    private void applyDefaults() {
+        if (this.quantite == null) {
+            this.quantite = BigDecimal.ZERO;
+        }
+        if (this.prixUnitaireHt == null) {
+            this.prixUnitaireHt = BigDecimal.ZERO;
+        }
         if (this.tauxTva == null) {
             this.tauxTva = new BigDecimal("21.00");
         }

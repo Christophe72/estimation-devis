@@ -21,6 +21,8 @@ import java.util.List;
 @Transactional
 public class EstimationServiceImpl implements EstimationService {
 
+    private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+
     private final EstimationRepository estimationRepository;
     private final CustomerRepository customerRepository;
     private final EstimationMapper estimationMapper;
@@ -58,12 +60,13 @@ public class EstimationServiceImpl implements EstimationService {
                 .designation(trimToNull(request.getDesignation()))
                 .customer(customer)
                 .description(trimToNull(request.getDescription()))
-                .totalHt(BigDecimal.ZERO)
-                .totalTva(BigDecimal.ZERO)
-                .totalTtc(BigDecimal.ZERO)
+                .statut(StatutEstimation.BROUILLON)
+                .totalHt(zero())
+                .totalTva(zero())
+                .totalTtc(zero())
                 .build();
 
-        applyLines(estimation, request);
+        applyLines(estimation, request.getLines());
         recalculateTotals(estimation);
 
         Estimation saved = estimationRepository.save(estimation);
@@ -83,7 +86,7 @@ public class EstimationServiceImpl implements EstimationService {
         estimation.setDescription(trimToNull(request.getDescription()));
 
         estimation.clearLines();
-        applyLines(estimation, request);
+        applyLines(estimation, request.getLines());
         recalculateTotals(estimation);
 
         Estimation saved = estimationRepository.save(estimation);
@@ -98,25 +101,26 @@ public class EstimationServiceImpl implements EstimationService {
         estimationRepository.delete(estimation);
     }
 
-    private void applyLines(Estimation estimation, EstimationRequest request) {
-        if (request.getLines() == null || request.getLines().isEmpty()) {
+    private void applyLines(Estimation estimation, List<EstimationLineRequest> lineRequests) {
+        if (lineRequests == null || lineRequests.isEmpty()) {
             return;
         }
 
         int index = 0;
 
-        for (EstimationLineRequest lineRequest : request.getLines()) {
+        for (EstimationLineRequest lineRequest : lineRequests) {
             BigDecimal quantite = scale(lineRequest.getQuantite());
             BigDecimal prixUnitaireHt = scale(lineRequest.getPrixUnitaireHt());
             BigDecimal tauxTva = scale(lineRequest.getTauxTva());
 
             BigDecimal totalHt = scale(quantite.multiply(prixUnitaireHt));
             BigDecimal totalTva = scale(
-                    totalHt.multiply(tauxTva).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP)
+                    totalHt.multiply(tauxTva).divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP)
             );
             BigDecimal totalTtc = scale(totalHt.add(totalTva));
 
             EstimationLine line = EstimationLine.builder()
+                    .estimation(estimation)
                     .typeLigne(lineRequest.getTypeLigne())
                     .designation(trimToNull(lineRequest.getDesignation()))
                     .quantite(quantite)
@@ -137,22 +141,32 @@ public class EstimationServiceImpl implements EstimationService {
     private void recalculateTotals(Estimation estimation) {
         BigDecimal totalHt = estimation.getLines().stream()
                 .map(EstimationLine::getTotalHt)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .filter(value -> value != null)
+                .reduce(zero(), BigDecimal::add);
 
         BigDecimal totalTva = estimation.getLines().stream()
                 .map(EstimationLine::getTotalTva)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .filter(value -> value != null)
+                .reduce(zero(), BigDecimal::add);
 
         BigDecimal totalTtc = estimation.getLines().stream()
                 .map(EstimationLine::getTotalTtc)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .filter(value -> value != null)
+                .reduce(zero(), BigDecimal::add);
 
         estimation.setTotalHt(scale(totalHt));
         estimation.setTotalTva(scale(totalTva));
         estimation.setTotalTtc(scale(totalTtc));
     }
 
+    private BigDecimal zero() {
+        return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    }
+
     private BigDecimal scale(BigDecimal value) {
+        if (value == null) {
+            return zero();
+        }
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 

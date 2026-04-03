@@ -39,10 +39,10 @@ public class EstimationController {
 
     @PostMapping
     public ResponseEntity<EstimationResponse> create(@Valid @RequestBody EstimationRequest request) {
-        EstimationResponse response = estimationService.create(request);
+        EstimationResponse created = estimationService.create(request);
         return ResponseEntity
-                .created(URI.create("/api/estimations/" + response.getId()))
-                .body(response);
+                .created(URI.create("/api/estimations/" + created.getId()))
+                .body(created);
     }
 
     @PutMapping("/{id}")

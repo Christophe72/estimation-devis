@@ -5,92 +5,44 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class EstimationLineRequest {
 
-    @NotNull(message = "Le type de ligne est obligatoire.")
+    @NotNull(message = "Le typeLigne est obligatoire.")
     private TypeLigneEstimation typeLigne;
 
-    @NotBlank(message = "La désignation de la ligne est obligatoire.")
-    @Size(max = 255, message = "La désignation de la ligne ne peut pas dépasser 255 caractères.")
+    @NotBlank(message = "La designation de la ligne est obligatoire.")
     private String designation;
 
-    @NotNull(message = "La quantité est obligatoire.")
-    @DecimalMin(value = "0.01", message = "La quantité doit être supérieure à 0.")
-    @Digits(integer = 10, fraction = 2, message = "La quantité est invalide.")
+    @NotNull(message = "La quantite est obligatoire.")
+    @DecimalMin(value = "0.00", inclusive = false, message = "La quantite doit etre superieure a 0.")
+    @Digits(integer = 10, fraction = 2, message = "La quantite doit contenir au maximum 10 chiffres avant la virgule et 2 apres.")
     private BigDecimal quantite;
 
-    @Size(max = 50, message = "L'unité ne peut pas dépasser 50 caractères.")
+    @NotBlank(message = "L'unite est obligatoire.")
     private String unite;
 
-    @NotNull(message = "Le prix unitaire HT est obligatoire.")
-    @DecimalMin(value = "0.00", inclusive = true, message = "Le prix unitaire HT doit être positif ou nul.")
-    @Digits(integer = 10, fraction = 2, message = "Le prix unitaire HT est invalide.")
+    @NotNull(message = "Le prixUnitaireHt est obligatoire.")
+    @DecimalMin(value = "0.00", inclusive = true, message = "Le prix unitaire HT doit etre superieur ou egal a 0.")
+    @Digits(integer = 10, fraction = 2, message = "Le prixUnitaireHt doit contenir au maximum 10 chiffres avant la virgule et 2 apres.")
     private BigDecimal prixUnitaireHt;
 
-    @NotNull(message = "Le taux TVA est obligatoire.")
-    @DecimalMin(value = "0.00", inclusive = true, message = "Le taux TVA doit être positif ou nul.")
-    @Digits(integer = 5, fraction = 2, message = "Le taux TVA est invalide.")
+    @NotNull(message = "Le tauxTva est obligatoire.")
+    @DecimalMin(value = "0.00", inclusive = true, message = "Le tauxTva doit etre superieur ou egal a 0.")
+    @Digits(integer = 4, fraction = 2, message = "Le tauxTva doit contenir au maximum 4 chiffres avant la virgule et 2 apres.")
     private BigDecimal tauxTva;
 
     private Integer ordre;
-
-    public TypeLigneEstimation getTypeLigne() {
-        return typeLigne;
-    }
-
-    public void setTypeLigne(TypeLigneEstimation typeLigne) {
-        this.typeLigne = typeLigne;
-    }
-
-    public String getDesignation() {
-        return designation;
-    }
-
-    public void setDesignation(String designation) {
-        this.designation = designation;
-    }
-
-    public BigDecimal getQuantite() {
-        return quantite;
-    }
-
-    public void setQuantite(BigDecimal quantite) {
-        this.quantite = quantite;
-    }
-
-    public String getUnite() {
-        return unite;
-    }
-
-    public void setUnite(String unite) {
-        this.unite = unite;
-    }
-
-    public BigDecimal getPrixUnitaireHt() {
-        return prixUnitaireHt;
-    }
-
-    public void setPrixUnitaireHt(BigDecimal prixUnitaireHt) {
-        this.prixUnitaireHt = prixUnitaireHt;
-    }
-
-    public BigDecimal getTauxTva() {
-        return tauxTva;
-    }
-
-    public void setTauxTva(BigDecimal tauxTva) {
-        this.tauxTva = tauxTva;
-    }
-
-    public Integer getOrdre() {
-        return ordre;
-    }
-
-    public void setOrdre(Integer ordre) {
-        this.ordre = ordre;
-    }
 }
