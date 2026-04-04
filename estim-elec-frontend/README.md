@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EstimElec — Frontend
 
-## Getting Started
+Application de gestion de devis électriques (clients, ouvrages, estimations, devis, factures, paiements).
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router, Turbopack)
+- **TypeScript**
+- **Tailwind CSS v4**
+- **React 19**
+- Backend : Spring Boot (API REST, auth JWT)
+
+## Prérequis
+
+- Node.js >= 18
+- Backend Spring Boot démarré sur `http://localhost:9090`
+
+## Démarrage
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Application disponible sur http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variables d'environnement
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Créer un fichier `.env.local` à la racine :
 
-## Learn More
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+Les appels `/api/*` sont proxifiés vers `http://localhost:9090/api/*` via `next.config.ts`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Authentification
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Formulaire de connexion sur `/login`
+- JWT stocké dans `localStorage` (clé `auth_token`)
+- Header `Authorization: Bearer <token>` ajouté automatiquement sur chaque appel API via `lib/api.ts`
+- Pas de NextAuth, pas de refresh token
+- Redirection automatique vers `/login` si non connecté
 
-## Deploy on Vercel
+## Modules
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Module | Route |
+|---|---|
+| Accueil | `/` |
+| Clients | `/customers` |
+| Ouvrages | `/ouvrages` |
+| Estimations | `/estimations` |
+| Devis | `/devis` |
+| Factures | `/factures` |
+| Paiements | `/paiements` |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Chaque module dispose des pages : liste, détail, création, édition.
+
+## Arborescence principale
+
+```
+app/                  Pages (App Router)
+components/           Composants réutilisables par module
+context/
+  AuthContext.tsx     État d'authentification (useSyncExternalStore)
+  ThemeContext.tsx    Mode jour / nuit
+components/
+  ThemeToggle.tsx     Bouton bascule thème (fixe, coin supérieur droit)
+lib/
+  api.ts              Helper fetch + injection Bearer token
+  auth.ts             Login, logout, helpers localStorage
+  format.ts           formatDate, formatCurrency
+  customers.ts        API clients
+  ouvrages.ts         API ouvrages
+  estimations.ts      API estimations
+  devis.ts            API devis
+  factures.ts         API factures
+  paiements.ts        API paiements
+types/                Types TypeScript par domaine
+```
+
+## Scripts
+
+```bash
+npm run dev      # Serveur de développement
+npm run build    # Build de production
+npm run lint     # ESLint
+```
