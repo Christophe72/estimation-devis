@@ -1,5 +1,6 @@
 package com.estimelec.common.exception;
 
+import com.estimelec.auth.InvalidCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -27,6 +28,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DeleteConflictException.class)
     public ResponseEntity<ErrorResponse> handleDeleteConflict(DeleteConflictException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

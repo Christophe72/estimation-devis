@@ -28,3 +28,9 @@ logging:
   level:
     org.flywaydb: info
     org.hibernate.SQL: info
+
+app:
+  security:
+    jwt:
+      secret: "c3VwZXItc2VjcmV0LWtleS1mb3ItanNvbndlYnRva2VuLWRldi0xMjM0NTY3ODkw"
+      expiration: 3600
