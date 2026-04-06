@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { getCustomers } from "@/lib/customers";
+import { getOuvrages } from "@/lib/ouvrages";
 import type { CustomerResponse } from "@/types/customer";
 import type { EstimationLineRequest, EstimationRequest } from "@/types/estimation";
+import type { OuvrageResponse } from "@/types/ouvrage";
 
 type LineState = {
   ouvrageId: string;
@@ -54,6 +56,7 @@ export default function EstimationForm({
   submitLabel = "Enregistrer",
 }: Props) {
   const [customers, setCustomers] = useState<CustomerResponse[]>([]);
+  const [ouvrages, setOuvrages] = useState<OuvrageResponse[]>([]);
   const [designation, setDesignation] = useState(initialValues.designation ?? "");
   const [customerId, setCustomerId] = useState(
     initialValues.customerId != null ? String(initialValues.customerId) : "",
@@ -67,16 +70,21 @@ export default function EstimationForm({
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    async function loadCustomers() {
+    async function loadOptions() {
       try {
-        const data = await getCustomers();
-        setCustomers(data ?? []);
+        const [customerData, ouvrageData] = await Promise.all([
+          getCustomers(),
+          getOuvrages(),
+        ]);
+
+        setCustomers(customerData ?? []);
+        setOuvrages(ouvrageData ?? []);
       } catch {
-        // Le select reste vide si le chargement échoue.
+        // Les selects restent vides si le chargement échoue.
       }
     }
 
-    void loadCustomers();
+    void loadOptions();
   }, []);
 
   function getFieldError(field: string): string | null {
@@ -150,7 +158,7 @@ export default function EstimationForm({
       const parsedOrdre = parseInt(line.ordre, 10);
 
       if (!line.ouvrageId || Number.isNaN(parsedOuvrageId) || parsedOuvrageId <= 0) {
-        setError(`Ligne ${i + 1} : l'identifiant ouvrage est requis.`);
+        setError(`Ligne ${i + 1} : l'ouvrage est requis.`);
         return;
       }
 
@@ -328,7 +336,7 @@ export default function EstimationForm({
                     Ordre
                   </th>
                   <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">
-                    ID Ouvrage <span className="text-red-500">*</span>
+                    Ouvrage <span className="text-red-500">*</span>
                   </th>
                   <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">
                     Quantité <span className="text-red-500">*</span>
@@ -357,14 +365,20 @@ export default function EstimationForm({
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min={1}
+                      <select
                         required
                         value={line.ouvrageId}
                         onChange={(e) => updateLine(index, "ouvrageId", e.target.value)}
-                        className="w-24 rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
-                      />
+                        className="min-w-64 rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                      >
+                        <option value="">-- Selectionner un ouvrage --</option>
+                        {ouvrages.map((ouvrage) => (
+                          <option key={ouvrage.id} value={ouvrage.id}>
+                            {ouvrage.code} - {ouvrage.designation}
+                            {ouvrage.actif === false ? " (inactif)" : ""}
+                          </option>
+                        ))}
+                      </select>
                       {getLineFieldError(index, "ouvrageId") && (
                         <p className="mt-1 text-xs text-red-700 dark:text-red-400">
                           {getLineFieldError(index, "ouvrageId")}
