@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
+import { getCustomers } from "@/lib/customers";
+import type { CustomerResponse } from "@/types/customer";
 import type { EstimationLineRequest, EstimationRequest } from "@/types/estimation";
 
 type LineState = {
@@ -51,6 +53,7 @@ export default function EstimationForm({
   onCancel,
   submitLabel = "Enregistrer",
 }: Props) {
+  const [customers, setCustomers] = useState<CustomerResponse[]>([]);
   const [designation, setDesignation] = useState(initialValues.designation ?? "");
   const [customerId, setCustomerId] = useState(
     initialValues.customerId != null ? String(initialValues.customerId) : "",
@@ -62,6 +65,19 @@ export default function EstimationForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    async function loadCustomers() {
+      try {
+        const data = await getCustomers();
+        setCustomers(data ?? []);
+      } catch {
+        // Le select reste vide si le chargement échoue.
+      }
+    }
+
+    void loadCustomers();
+  }, []);
 
   function getFieldError(field: string): string | null {
     return validationErrors[field] ?? null;
@@ -117,7 +133,7 @@ export default function EstimationForm({
 
     const parsedCustomerId = parseInt(customerId, 10);
     if (!customerId || Number.isNaN(parsedCustomerId) || parsedCustomerId <= 0) {
-      setError("L'identifiant client est requis et doit être un nombre positif.");
+      setError("Le client est requis.");
       return;
     }
 
@@ -237,17 +253,22 @@ export default function EstimationForm({
             htmlFor="customerId"
             className="text-sm font-medium text-gray-800 dark:text-gray-200"
           >
-            ID Client <span className="text-red-600">*</span>
+            Client <span className="text-red-600">*</span>
           </label>
-          <input
+          <select
             id="customerId"
-            type="number"
             required
-            min={1}
             value={customerId}
             onChange={(e) => setCustomerId(e.target.value)}
             className="rounded border border-zinc-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
-          />
+          >
+            <option value="">-- Selectionner un client --</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.nom}
+              </option>
+            ))}
+          </select>
           {getFieldError("customerId") && (
             <p className="text-sm text-red-700 dark:text-red-400">
               {getFieldError("customerId")}
