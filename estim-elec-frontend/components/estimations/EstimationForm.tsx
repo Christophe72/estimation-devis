@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import NumericInput from "@/components/NumericInput";
 import { ApiError } from "@/lib/api";
 import { getCustomers } from "@/lib/customers";
 import { getOuvrages } from "@/lib/ouvrages";
@@ -351,11 +352,13 @@ export default function EstimationForm({
                 {lines.map((line, index) => (
                   <tr key={index} className="bg-white dark:bg-zinc-900">
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
+                      <NumericInput
                         min={1}
                         value={line.ordre}
-                        onChange={(e) => updateLine(index, "ordre", e.target.value)}
+                        onChange={(value) => updateLine(index, "ordre", value)}
+                        size="compact"
+                        wrapperClassName="justify-center"
+                        buttonClassName="h-7 w-7"
                         className="w-16 rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                       />
                       {getLineFieldError(index, "ordre") && (
@@ -386,13 +389,14 @@ export default function EstimationForm({
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
+                      <NumericInput
                         min={0.01}
                         step={0.01}
                         required
                         value={line.quantite}
-                        onChange={(e) => updateLine(index, "quantite", e.target.value)}
+                        onChange={(value) => updateLine(index, "quantite", value)}
+                        size="compact"
+                        buttonClassName="h-7 w-7"
                         className="w-24 rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                       />
                       {getLineFieldError(index, "quantite") && (
@@ -402,13 +406,14 @@ export default function EstimationForm({
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <input
-                        type="number"
+                      <NumericInput
                         min={0}
                         step={0.01}
                         required
                         value={line.prixUnitaireHt}
-                        onChange={(e) => updateLine(index, "prixUnitaireHt", e.target.value)}
+                        onChange={(value) => updateLine(index, "prixUnitaireHt", value)}
+                        size="compact"
+                        buttonClassName="h-7 w-7"
                         className="w-28 rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-black dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                       />
                       {getLineFieldError(index, "prixUnitaireHt") && (

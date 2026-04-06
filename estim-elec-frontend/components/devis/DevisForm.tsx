@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import NumericInput from "@/components/NumericInput";
 import { getCustomers } from "@/lib/customers";
 import type { CustomerResponse } from "@/types/customer";
 import type { DevisRequest } from "@/types/devis";
@@ -163,30 +164,30 @@ export default function DevisForm({
 
       <div className="grid grid-cols-2 gap-4">
         <Field id="tauxHoraire" label="Taux horaire (€/h)" required>
-          <input id="tauxHoraire" type="number" step="0.01" min="0.01" value={tauxHoraire}
-            onChange={(e) => setTauxHoraire(e.target.value)} required className={inputCls} />
+          <NumericInput id="tauxHoraire" step={0.01} min={0.01} value={tauxHoraire}
+            onChange={setTauxHoraire} required className={inputCls} />
         </Field>
 
         <Field id="coefficientChantier" label="Coefficient chantier">
-          <input id="coefficientChantier" type="number" step="0.01" min="0.01"
+          <NumericInput id="coefficientChantier" step={0.01} min={0.01}
             value={coefficientChantier}
-            onChange={(e) => setCoefficientChantier(e.target.value)} className={inputCls} />
+            onChange={setCoefficientChantier} className={inputCls} />
         </Field>
 
         <Field id="tauxFraisGeneraux" label="Frais généraux (%)">
-          <input id="tauxFraisGeneraux" type="number" step="0.01" min="0"
+          <NumericInput id="tauxFraisGeneraux" step={0.01} min={0}
             value={tauxFraisGeneraux}
-            onChange={(e) => setTauxFraisGeneraux(e.target.value)} className={inputCls} />
+            onChange={setTauxFraisGeneraux} className={inputCls} />
         </Field>
 
         <Field id="tauxMarge" label="Marge (%)">
-          <input id="tauxMarge" type="number" step="0.01" min="0" value={tauxMarge}
-            onChange={(e) => setTauxMarge(e.target.value)} className={inputCls} />
+          <NumericInput id="tauxMarge" step={0.01} min={0} value={tauxMarge}
+            onChange={setTauxMarge} className={inputCls} />
         </Field>
 
         <Field id="tauxTva" label="TVA (%)">
-          <input id="tauxTva" type="number" step="0.01" min="0" value={tauxTva}
-            onChange={(e) => setTauxTva(e.target.value)} className={inputCls} />
+          <NumericInput id="tauxTva" step={0.01} min={0} value={tauxTva}
+            onChange={setTauxTva} className={inputCls} />
         </Field>
       </div>
 

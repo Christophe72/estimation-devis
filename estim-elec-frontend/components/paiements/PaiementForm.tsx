@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import NumericInput from "@/components/NumericInput";
 import { getFactures } from "@/lib/factures";
 import type { FactureResponse } from "@/types/facture";
 import type { PaiementRequest } from "@/types/paiement";
@@ -84,8 +85,8 @@ export default function PaiementForm({
         <label htmlFor="montant" className="text-sm font-medium">
           Montant <span className="text-red-600">*</span>
         </label>
-        <input id="montant" type="number" step="0.01" min="0.01" value={montant}
-          onChange={(e) => setMontant(e.target.value)} required className={inputCls} />
+        <NumericInput id="montant" step={0.01} min={0.01} value={montant}
+          onChange={setMontant} required className={inputCls} />
       </div>
 
       <div className="flex flex-col gap-1">
