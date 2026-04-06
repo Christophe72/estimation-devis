@@ -23,6 +23,7 @@ export default function NewEstimationPage() {
         >
           ← Estimations
         </Link>
+
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
           Nouvelle estimation
         </h1>

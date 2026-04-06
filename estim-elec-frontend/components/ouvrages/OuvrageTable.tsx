@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { formatCurrency } from "@/lib/format";
 import type { OuvrageResponse } from "@/types/ouvrage";
 
 type Props = {
@@ -15,20 +14,26 @@ export default function OuvrageTable({ ouvrages, onDelete }: Props) {
       <table className="min-w-full border border-zinc-200 bg-white">
         <thead>
           <tr className="bg-zinc-100 text-left">
+            <th className="border-b border-zinc-200 px-3 py-2">Code</th>
             <th className="border-b border-zinc-200 px-3 py-2">Désignation</th>
+            <th className="border-b border-zinc-200 px-3 py-2">Catégorie</th>
             <th className="border-b border-zinc-200 px-3 py-2">Unité</th>
-            <th className="border-b border-zinc-200 px-3 py-2">Prix unitaire</th>
+            <th className="border-b border-zinc-200 px-3 py-2">Temps pose (h)</th>
+            <th className="border-b border-zinc-200 px-3 py-2">Actif</th>
             <th className="border-b border-zinc-200 px-3 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
           {ouvrages.map((ouvrage) => (
             <tr key={ouvrage.id} className="hover:bg-zinc-50">
+              <td className="border-b border-zinc-200 px-3 py-2 font-mono text-xs">{ouvrage.code}</td>
               <td className="border-b border-zinc-200 px-3 py-2">{ouvrage.designation}</td>
+              <td className="border-b border-zinc-200 px-3 py-2">{ouvrage.categorie}</td>
               <td className="border-b border-zinc-200 px-3 py-2">{ouvrage.unite}</td>
               <td className="border-b border-zinc-200 px-3 py-2">
-                {formatCurrency(ouvrage.prixUnitaire)}
+                {ouvrage.tempsPoseHeure}
               </td>
+              <td className="border-b border-zinc-200 px-3 py-2">{ouvrage.actif ? "Oui" : "Non"}</td>
               <td className="border-b border-zinc-200 px-3 py-2">
                 <div className="flex gap-3">
                   <Link

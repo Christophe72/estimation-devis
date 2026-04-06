@@ -31,14 +31,6 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      {/* Inline script prevents dark-mode flash before React hydrates */}
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})()`,
-          }}
-        />
-      </head>
       <body className="min-h-full flex flex-col bg-white dark:bg-gray-900">
         <ThemeProvider>
           <ThemeToggle />

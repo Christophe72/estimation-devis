@@ -94,6 +94,6 @@ public class OuvrageServiceImpl implements OuvrageService {
             return null;
         }
         String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : null;
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

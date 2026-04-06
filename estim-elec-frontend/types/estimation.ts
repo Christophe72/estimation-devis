@@ -27,6 +27,7 @@ export type EstimationResponse = {
 export type EstimationLineRequest = {
   ouvrageId: number;
   quantite: number;
+  prixUnitaireHt: number;
   ordre: number;
 };
 

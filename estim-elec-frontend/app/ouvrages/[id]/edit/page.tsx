@@ -55,9 +55,13 @@ export default function EditOuvragePage() {
       {!loading && !error && ouvrage && (
         <OuvrageForm
           initialValues={{
+            code: ouvrage.code,
             designation: ouvrage.designation,
-            prixUnitaire: ouvrage.prixUnitaire,
+            categorie: ouvrage.categorie,
             unite: ouvrage.unite,
+            tempsPoseHeure: ouvrage.tempsPoseHeure,
+            description: ouvrage.description,
+            actif: ouvrage.actif ?? true,
           }}
           onSubmit={handleSubmit}
           submitLabel="Enregistrer"

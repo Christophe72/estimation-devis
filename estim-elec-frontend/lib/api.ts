@@ -1,5 +1,19 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+export type ValidationErrors = Record<string, string>;
+
+export class ApiError extends Error {
+  status: number;
+  validationErrors?: ValidationErrors;
+
+  constructor(message: string, status: number, validationErrors?: ValidationErrors) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.validationErrors = validationErrors;
+  }
+}
+
 function buildApiUrl(path: string): string {
   if (!API_BASE_URL) {
     throw new Error("NEXT_PUBLIC_API_BASE_URL is not defined");
@@ -11,9 +25,20 @@ function buildApiUrl(path: string): string {
   return `${normalizedBaseUrl}${normalizedPath}`;
 }
 
-async function parseErrorMessage(response: Response): Promise<string> {
+async function parseErrorResponse(
+  response: Response,
+): Promise<{ message: string; validationErrors?: ValidationErrors }> {
   try {
     const errorBody = await response.json();
+
+    const validationErrors =
+      errorBody &&
+      typeof errorBody === "object" &&
+      "validationErrors" in errorBody &&
+      errorBody.validationErrors &&
+      typeof errorBody.validationErrors === "object"
+        ? (errorBody.validationErrors as ValidationErrors)
+        : undefined;
 
     if (
       errorBody &&
@@ -25,7 +50,7 @@ async function parseErrorMessage(response: Response): Promise<string> {
       typeof errorBody.error.message === "string" &&
       errorBody.error.message.trim() !== ""
     ) {
-      return errorBody.error.message;
+      return { message: errorBody.error.message, validationErrors };
     }
 
     if (
@@ -35,7 +60,14 @@ async function parseErrorMessage(response: Response): Promise<string> {
       typeof errorBody.message === "string" &&
       errorBody.message.trim() !== ""
     ) {
-      return errorBody.message;
+      return { message: errorBody.message, validationErrors };
+    }
+
+    if (validationErrors && Object.keys(validationErrors).length > 0) {
+      return {
+        message: "Erreur de validation.",
+        validationErrors,
+      };
     }
   } catch {
     // Ignore JSON parse errors and fallback to text/default message.
@@ -45,13 +77,13 @@ async function parseErrorMessage(response: Response): Promise<string> {
     const text = await response.text();
 
     if (text.trim() !== "") {
-      return text;
+      return { message: text };
     }
   } catch {
     // Ignore text parse errors and fallback to status message.
   }
 
-  return `HTTP ${response.status} ${response.statusText}`;
+  return { message: `HTTP ${response.status} ${response.statusText}` };
 }
 
 export async function apiFetch<T = unknown>(
@@ -81,8 +113,8 @@ export async function apiFetch<T = unknown>(
   });
 
   if (!response.ok) {
-    const message = await parseErrorMessage(response);
-    throw new Error(message);
+    const { message, validationErrors } = await parseErrorResponse(response);
+    throw new ApiError(message, response.status, validationErrors);
   }
 
   if (response.status === 204) {

@@ -74,6 +74,7 @@ export default function EditEstimationPage() {
             lines: estimation.lines.map((l) => ({
               ouvrageId: l.ouvrageId,
               quantite: l.quantite,
+              prixUnitaireHt: l.prixUnitaireHt,
               ordre: l.ordre,
             })),
           }}

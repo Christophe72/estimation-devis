@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getOuvrage } from "@/lib/ouvrages";
-import { formatCurrency } from "@/lib/format";
 import type { OuvrageResponse } from "@/types/ouvrage";
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -58,9 +57,15 @@ export default function OuvragePage() {
       {!loading && !error && ouvrage && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded border border-zinc-200 bg-white p-4">
+            <Row label="Code" value={ouvrage.code} />
             <Row label="Désignation" value={ouvrage.designation} />
+            <Row label="Catégorie" value={ouvrage.categorie} />
             <Row label="Unité" value={ouvrage.unite} />
-            <Row label="Prix unitaire" value={formatCurrency(ouvrage.prixUnitaire)} />
+            <Row label="Temps pose (heure)" value={ouvrage.tempsPoseHeure.toString()} />
+            <Row label="Actif" value={ouvrage.actif ? "Oui" : "Non"} />
+            {ouvrage.description && (
+              <Row label="Description" value={ouvrage.description} />
+            )}
           </div>
           <div>
             <Link
