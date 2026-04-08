@@ -1,63 +1,127 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
+import { getCustomers } from "@/lib/customers";
+import { getEstimations } from "@/lib/estimations";
+import { formatCurrency } from "@/lib/format";
+
+type Stats = {
+  customers: number;
+  estimations: number;
+  estimationsByStatut: Record<string, number>;
+};
+
+function KpiCard({ label, value, href }: { label: string; value: string | number; href?: string }) {
+  const inner = (
+    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+    </div>
+  );
+  if (href) return <Link href={href} className="hover:opacity-80 transition-opacity">{inner}</Link>;
+  return inner;
+}
 
 export default function Home() {
-  const { user, logout } = useAuth();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [customersResult, estimationsResult] = await Promise.allSettled([
+          getCustomers(),
+          getEstimations(),
+        ]);
+
+        const customers =
+          customersResult.status === "fulfilled" ? (customersResult.value ?? []) : [];
+        const estimations =
+          estimationsResult.status === "fulfilled" ? (estimationsResult.value ?? []) : [];
+
+        const estimationsByStatut: Record<string, number> = {};
+        for (const e of estimations) {
+          estimationsByStatut[e.statut] = (estimationsByStatut[e.statut] ?? 0) + 1;
+        }
+
+        setStats({
+          customers: customers.length,
+          estimations: estimations.length,
+          estimationsByStatut,
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    void load();
+  }, []);
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Bienvenue sur l&apos;application de gestion de devis électriques
-          </h1>
-          {user && (
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Connecté en tant que{" "}
-              <span className="font-semibold text-gray-800 dark:text-gray-200">
-                {user.prenom} {user.nom}
-              </span>{" "}
-              ({user.role})
-            </p>
+    <main className="mx-auto w-full max-w-5xl p-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          Vue d&apos;ensemble de votre activité
+        </p>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Chargement...</p>
+      ) : (
+        <div className="flex flex-col gap-8">
+          {/* KPIs */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <KpiCard label="Clients" value={stats?.customers ?? 0} href="/customers" />
+            <KpiCard label="Estimations" value={stats?.estimations ?? 0} href="/estimations" />
+            <KpiCard label="Devis" value="→" href="/devis" />
+            <KpiCard label="Factures" value="→" href="/factures" />
+          </div>
+
+          {/* Estimations par statut */}
+          {stats && Object.keys(stats.estimationsByStatut).length > 0 && (
+            <div>
+              <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+                Estimations par statut
+              </h2>
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(stats.estimationsByStatut).map(([statut, count]) => (
+                  <div
+                    key={statut}
+                    className="rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+                  >
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{statut}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{count}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
+
+          {/* Navigation rapide */}
+          <div>
+            <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-white">
+              Accès rapide
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { href: "/customers/new", label: "Nouveau client" },
+                { href: "/articles/new", label: "Nouvel article" },
+                { href: "/ouvrages/new", label: "Nouvel ouvrage" },
+                { href: "/estimations/new", label: "Nouvelle estimation" },
+              ].map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-gray-300 dark:hover:bg-zinc-800"
+                >
+                  + {label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
-        <button
-          onClick={logout}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-        >
-          Déconnexion
-        </button>
-      </div>
-
-      <p className="mb-2 text-base text-gray-700 dark:text-gray-300">
-        Utilisez le menu pour naviguer entre les clients, les ouvrages et les devis.
-      </p>
-      <p className="mb-6 text-base text-gray-700 dark:text-gray-300">
-        Vous pouvez créer, modifier et supprimer des clients et des ouvrages, ainsi que générer des devis basés sur ces données.
-      </p>
-
-      <div className="flex flex-wrap gap-3">
-        <Link href="/customers" className="inline-block rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
-          Voir les clients
-        </Link>
-        <Link href="/ouvrages" className="inline-block rounded bg-green-600 px-4 py-2 font-medium text-white hover:bg-green-700">
-          Voir les ouvrages
-        </Link>
-        <Link href="/devis" className="inline-block rounded bg-purple-600 px-4 py-2 font-medium text-white hover:bg-purple-700">
-          Voir les devis
-        </Link>
-        <Link href="/factures" className="inline-block rounded bg-orange-600 px-4 py-2 font-medium text-white hover:bg-orange-700">
-          Voir les factures
-        </Link>
-        <Link href="/paiements" className="inline-block rounded bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700">
-          Voir les paiements
-        </Link>
-        <Link href="/estimations" className="inline-block rounded bg-teal-600 px-4 py-2 font-medium text-white hover:bg-teal-700">
-          Voir les estimations
-        </Link>
-      </div>
-    </div>
+      )}
+    </main>
   );
 }

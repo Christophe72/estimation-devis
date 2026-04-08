@@ -390,8 +390,8 @@ export default function EstimationForm({
                     </td>
                     <td className="px-3 py-2">
                       <NumericInput
-                        min={0.01}
-                        step={0.01}
+                        min={1}
+                        step={1}
                         required
                         value={line.quantite}
                         onChange={(value) => updateLine(index, "quantite", value)}

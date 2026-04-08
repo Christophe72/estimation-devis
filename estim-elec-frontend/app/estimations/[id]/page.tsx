@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getEstimation } from "@/lib/estimations";
+import { convertirEnDevis, getEstimation } from "@/lib/estimations";
 import { formatCurrency, formatDate } from "@/lib/format";
+import StatutEstimationBadge from "@/components/estimations/StatutEstimationBadge";
+import ConfirmModal from "@/components/ConfirmModal";
 import type { EstimationResponse } from "@/types/estimation";
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2">
-      <span className="w-40 shrink-0 text-sm text-zinc-500 dark:text-zinc-400">
-        {label}
-      </span>
+      <span className="w-40 shrink-0 text-sm text-zinc-500 dark:text-zinc-400">{label}</span>
       <span className="text-sm text-gray-900 dark:text-white">{value}</span>
     </div>
   );
@@ -20,9 +20,12 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export default function EstimationPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [estimation, setEstimation] = useState<EstimationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [confirmConvert, setConfirmConvert] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -37,6 +40,22 @@ export default function EstimationPage() {
     }
     void load();
   }, [id]);
+
+  async function handleConvertir() {
+    setConverting(true);
+    setError(null);
+    try {
+      const devis = await convertirEnDevis(Number(id));
+      if (devis) router.push(`/devis/${devis.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la conversion.");
+    } finally {
+      setConverting(false);
+    }
+  }
+
+  const canConvert =
+    estimation && estimation.statut !== "ANNULEE" && estimation.statut !== "REFUSEE";
 
   return (
     <main className="mx-auto w-full max-w-4xl p-6">
@@ -53,9 +72,7 @@ export default function EstimationPage() {
       </div>
 
       {loading && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Chargement...
-        </p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Chargement...</p>
       )}
 
       {!loading && error && (
@@ -65,17 +82,16 @@ export default function EstimationPage() {
       )}
 
       {!loading && !error && !estimation && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Estimation introuvable.
-        </p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Estimation introuvable.</p>
       )}
 
       {!loading && !error && estimation && (
         <div className="flex flex-col gap-6">
-          {/* Info générales */}
+          {/* Infos générales */}
           <div className="flex flex-col gap-3 rounded border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
             <Row label="Désignation" value={estimation.designation} />
-            <Row label="Client ID" value={estimation.customerId.toString()} />
+            <Row label="Client" value={estimation.customerNom} />
+            <Row label="Statut" value={<StatutEstimationBadge statut={estimation.statut} />} />
             {estimation.description && (
               <Row label="Description" value={estimation.description} />
             )}
@@ -93,52 +109,29 @@ export default function EstimationPage() {
             </h2>
 
             {estimation.lines.length === 0 ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Aucune ligne.
-              </p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Aucune ligne.</p>
             ) : (
               <div className="overflow-x-auto rounded border border-zinc-200 dark:border-zinc-700">
                 <table className="min-w-full text-sm">
                   <thead className="bg-zinc-50 text-left dark:bg-zinc-800">
                     <tr>
-                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
-                        Ord.
-                      </th>
-                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
-                        Code
-                      </th>
-                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">
-                        Désignation
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-700 dark:text-gray-300">
-                        Qté
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-700 dark:text-gray-300">
-                        PU HT
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-700 dark:text-gray-300">
-                        Total HT
-                      </th>
+                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">Ord.</th>
+                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">Code</th>
+                      <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300">Désignation</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-700 dark:text-gray-300">Qté</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-700 dark:text-gray-300">PU HT</th>
+                      <th className="px-4 py-2 text-right font-medium text-gray-700 dark:text-gray-300">Total HT</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
                     {estimation.lines.map((line) => (
-                      <tr
-                        key={line.id}
-                        className="bg-white dark:bg-zinc-900"
-                      >
-                        <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                          {line.ordre}
-                        </td>
+                      <tr key={line.id} className="bg-white dark:bg-zinc-900">
+                        <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{line.ordre}</td>
                         <td className="px-4 py-2 font-mono text-xs text-gray-700 dark:text-gray-300">
                           {line.ouvrageCode}
                         </td>
-                        <td className="px-4 py-2 text-gray-900 dark:text-white">
-                          {line.ouvrageDesignation}
-                        </td>
-                        <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">
-                          {line.quantite}
-                        </td>
+                        <td className="px-4 py-2 text-gray-900 dark:text-white">{line.ouvrageDesignation}</td>
+                        <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">{line.quantite}</td>
                         <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">
                           {formatCurrency(line.prixUnitaireHt)}
                         </td>
@@ -154,13 +147,23 @@ export default function EstimationPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Link
               href={`/estimations/${estimation.id}/edit`}
               className="rounded bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100"
             >
               Modifier
             </Link>
+            {canConvert && (
+              <button
+                type="button"
+                onClick={() => setConfirmConvert(true)}
+                disabled={converting}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {converting ? "Conversion..." : "Convertir en devis"}
+              </button>
+            )}
             <Link
               href="/estimations"
               className="rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-gray-300 dark:hover:bg-zinc-800"
@@ -170,6 +173,18 @@ export default function EstimationPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmConvert}
+        title="Convertir en devis"
+        message="Convertir cette estimation en devis ? Un devis sera créé avec les mêmes lignes."
+        confirmLabel="Convertir"
+        onConfirm={() => {
+          setConfirmConvert(false);
+          void handleConvertir();
+        }}
+        onCancel={() => setConfirmConvert(false)}
+      />
     </main>
   );
 }

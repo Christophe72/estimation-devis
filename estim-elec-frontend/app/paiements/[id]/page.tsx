@@ -10,7 +10,7 @@ import type { PaiementResponse } from "@/types/paiement";
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2">
-      <span className="w-44 shrink-0 text-sm text-zinc-500">{label}</span>
+      <span className="w-44 shrink-0 text-sm text-zinc-500 dark:text-zinc-400">{label}</span>
       <span className="text-sm">{value}</span>
     </div>
   );
@@ -46,14 +46,14 @@ export default function PaiementDetailPage() {
       {loading && <p>Chargement...</p>}
 
       {!loading && error && (
-        <div className="rounded border border-red-300 bg-red-50 p-3 text-red-700">{error}</div>
+        <div className="rounded border border-red-300 bg-red-50 p-3 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{error}</div>
       )}
 
       {!loading && !error && !paiement && <p>Paiement introuvable.</p>}
 
       {!loading && !error && paiement && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded border border-zinc-200 bg-white p-4">
+          <div className="flex flex-col gap-3 rounded border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <Row label="Date de paiement" value={formatDate(paiement.datePaiement)} />
             <Row label="Montant" value={formatCurrency(paiement.montant)} />
             <Row label="Mode de paiement" value={paiement.modePaiement} />
@@ -66,9 +66,9 @@ export default function PaiementDetailPage() {
             } />
           </div>
 
-          <div className="flex flex-col gap-2 rounded border border-zinc-200 bg-white p-4">
-            <p className="text-sm font-semibold text-zinc-600 mb-1">Suivi facture</p>
-            <Row label="Total payé" value={<span className="text-green-700">{formatCurrency(paiement.totalPayeFacture)}</span>} />
+          <div className="flex flex-col gap-2 rounded border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <p className="mb-1 text-sm font-semibold text-zinc-600 dark:text-zinc-300">Suivi facture</p>
+            <Row label="Total payé" value={<span className="text-green-700 dark:text-green-400">{formatCurrency(paiement.totalPayeFacture)}</span>} />
             <Row label="Reste à payer" value={<span className="font-medium text-amber-700">{formatCurrency(paiement.resteAPayerFacture)}</span>} />
             <Row label="Statut facture" value={paiement.statutFacture} />
           </div>

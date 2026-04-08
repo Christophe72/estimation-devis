@@ -9,7 +9,7 @@ import type { OuvrageResponse } from "@/types/ouvrage";
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2">
-      <span className="w-36 shrink-0 text-sm text-zinc-500">{label}</span>
+      <span className="w-36 shrink-0 text-sm text-zinc-500 dark:text-zinc-400">{label}</span>
       <span className="text-sm">{value}</span>
     </div>
   );
@@ -47,7 +47,7 @@ export default function OuvragePage() {
       {loading && <p>Chargement...</p>}
 
       {!loading && error && (
-        <div className="rounded border border-red-300 bg-red-50 p-3 text-red-700">
+        <div className="rounded border border-red-300 bg-red-50 p-3 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
           {error}
         </div>
       )}
@@ -56,7 +56,7 @@ export default function OuvragePage() {
 
       {!loading && !error && ouvrage && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded border border-zinc-200 bg-white p-4">
+          <div className="flex flex-col gap-3 rounded border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <Row label="Code" value={ouvrage.code} />
             <Row label="Désignation" value={ouvrage.designation} />
             <Row label="Catégorie" value={ouvrage.categorie} />
@@ -70,7 +70,7 @@ export default function OuvragePage() {
           <div>
             <Link
               href={`/ouvrages/${ouvrage.id}/edit`}
-              className="rounded bg-black px-4 py-2 text-white hover:bg-zinc-800"
+              className="rounded bg-black px-4 py-2 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100"
             >
               Modifier
             </Link>

@@ -15,7 +15,9 @@ export type EstimationResponse = {
   id: number;
   designation: string;
   customerId: number;
+  customerNom: string;
   description: string | null;
+  statut: string;
   totalHt: number;
   totalTva: number;
   totalTtc: number;

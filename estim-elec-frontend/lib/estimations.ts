@@ -32,3 +32,7 @@ export async function deleteEstimation(id: number): Promise<null> {
   await apiFetch(`/api/estimations/${id}`, { method: "DELETE" });
   return null;
 }
+
+export function convertirEnDevis(id: number): Promise<import("@/types/devis").DevisResponse | null> {
+  return apiFetch(`/api/estimations/${id}/convertir-en-devis`, { method: "POST" });
+}
